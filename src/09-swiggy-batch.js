@@ -89,24 +89,67 @@
  */
 export function prepareOrder(item, prepTime) {
   // Your code here
+  return new Promise((resolve, reject) => {
+    if(!item) reject(new Error("Item name required!"))
+    if(typeof prepTime !== 'number' || isNaN(prepTime) || prepTime <= 0) reject(new Error("Invalid prep time!"))
+
+    setTimeout(() => resolve({ item, ready: true, prepTime }), prepTime)
+  })
 }
 
 export function prepareBatch(items) {
   // Your code here
+  if (!items || items.length === 0) {
+    return Promise.resolve([]);
+  }
+
+  const promises = items.map(element => 
+     prepareOrder(element.name, element.prepTime)
+  );
+ 
+  return Promise.all(promises)
 }
 
 export function getFirstReady(items) {
   // Your code here
+  if (!items || items.length === 0){
+    return Promise.reject(new Error("No items to prepare!"))
+  }
+
+  return Promise.race(items.map(ele => prepareOrder(ele.name, ele.prepTime)))
 }
 
 export function prepareSafeBatch(items) {
   // Your code here
+  if (!items || items.length === 0) {
+    return Promise.resolve([]);
+  }
+
+  const promises = items.map(item => prepareOrder(item.name, item.prepTime).catch(err => {throw err.message}))
+  return Promise.allSettled(promises)
 }
 
 export function deliverWithTimeout(orderPromise, timeoutMs) {
   // Your code here
+  if(!(timeoutMs > 0)) return Promise.reject(new Error("Invalid timeout!"))
+
+     const timeoutPromise = new Promise((_, reject) => {
+    setTimeout(() => reject(new Error("Delivery timeout!")), timeoutMs);
+  });
+
+  return Promise.race([orderPromise, timeoutPromise])
 }
 
 export function batchWithRetry(items, maxRetries) {
   // Your code here
+  if(!(maxRetries >= 0)) throw Error("not valid")
+  let lastError
+  for(let i = 0; i <= maxRetries; i++){
+    try {
+      return prepareBatch(items)
+    } catch (error) {
+      lastError = err
+      if(i === maxRetries) throw lastError
+    }
+  }
 }
