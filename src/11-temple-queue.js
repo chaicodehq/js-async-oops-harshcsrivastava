@@ -119,59 +119,124 @@
  *   }
  */
 export class TempleQueue {
-  #devotees;
-  #maxCapacity;
-  #vipEnabled;
+    #devotees;
+    #maxCapacity;
+    #vipEnabled;
 
-  constructor(templeName, maxCapacity) {
-    // Your code here
-  }
+    constructor(templeName, maxCapacity) {
+        // Your code here
+        this.templeName = templeName;
+        this.#devotees = [];
+        this.#maxCapacity = maxCapacity;
+        this.#vipEnabled = false;
+    }
 
-  get length() {
-    // Your code here
-  }
+    get length() {
+        // Your code here
+        return this.#devotees.length;
+    }
 
-  get isEmpty() {
-    // Your code here
-  }
+    get isEmpty() {
+        // Your code here
+        return this.#devotees.length === 0;
+    }
 
-  get vipEnabled() {
-    // Your code here
-  }
+    get vipEnabled() {
+        // Your code here
+        return this.#vipEnabled;
+    }
 
-  set vipEnabled(value) {
-    // Your code here
-  }
+    set vipEnabled(value) {
+        // Your code here
+        if (typeof value !== "boolean") {
+            throw new TypeError("VIP status must be a boolean");
+        }
+        this.#vipEnabled = value;
+    }
 
-  enqueue(name, type) {
-    // Your code here
-  }
+    enqueue(name, type) {
+        // Your code here
+        if (type !== "regular" && type !== "vip") return null;
+        if (!name || name.length === 0) return null;
 
-  dequeue() {
-    // Your code here
-  }
+        if (this.#devotees.length >= this.#maxCapacity) return null;
 
-  peek() {
-    // Your code here
-  }
+        const devotee = { name, type, joinedAt: new Date().toISOString() };
 
-  contains(name) {
-    // Your code here
-  }
+        if (type.toLowerCase() === "vip" && this.#vipEnabled)
+            this.#devotees.unshift(devotee);
+        if (type === "vip" && !this.#vipEnabled) this.#devotees.push(devotee);
+        if (type === "regular") this.#devotees.push(devotee);
 
-  toArray() {
-    // Your code here
-  }
+        return devotee;
+    }
 
-  static merge(queue1, queue2) {
-    // Your code here
-  }
+    dequeue() {
+        // Your code here
+        if (this.#devotees.length === 0) return null;
+        return this.#devotees.shift();
+    }
 
-  static fromArray(templeName, maxCapacity, arr) {
-    // Your code here
-  }
+    peek() {
+        // Your code here
+        if (this.#devotees.length === 0) return null;
+        return this.#devotees[0];
+    }
 
-  [Symbol.iterator]() {
-    // Your code here
-  }
+    contains(name) {
+        // Your code here
+
+        if (this.#devotees.find((dev) => dev.name === name)) return true;
+        return false;
+    }
+
+    toArray() {
+        // Your code here
+
+        return structuredClone(this.#devotees);
+    }
+
+    static merge(queue1, queue2) {
+        // Your code here
+        const cap = queue1.length + queue2.length + 4;
+        const q = new TempleQueue(
+            `${queue1.templeName}-${queue2.templeName}`,
+            cap,
+        );
+        queue1.toArray().forEach((element) => {
+            q.enqueue(element.name, element.type);
+        });
+
+        queue2.toArray().forEach((element) => {
+            q.enqueue(element.name, element.type);
+        });
+        return q;
+    }
+
+    static fromArray(templeName, maxCapacity, arr) {
+        // Your code here
+        if (!Array.isArray(arr)) {
+            return new TempleQueue(templeName, maxCapacity);
+        }
+
+        const q = new TempleQueue(templeName, maxCapacity);
+        arr.forEach((ele) => q.enqueue(ele, "regular"));
+        return q;
+    }
+
+    [Symbol.iterator]() {
+        // Your code here
+        let index = 0;
+        const devotees = this.toArray();
+
+        return {
+            next() {
+                if (index < devotees.length) {
+                    return { value: devotees[index++], done: false };
+                } else {
+                    return { done: true };
+                }
+            },
+        };
+    }
 }

@@ -113,41 +113,131 @@
  *   // => { type: "network", retryable: true, message: "Network error during transaction" }
  */
 export class PaymentError extends Error {
-  constructor(message, code, amount) {
-    // Your code here
-  }
+    constructor(message, code, amount) {
+        // Your code here
+        super(message);
+        this.name = "PaymentError";
+        this.code = code;
+        this.amount = amount;
+    }
 }
 
 export class InsufficientFundsError extends PaymentError {
-  constructor(amount, balance) {
-    // Your code here
-  }
+    constructor(amount, balance) {
+        // Your code here
+        const message = `Insufficient funds: need ${amount}, have ${balance}`;
+        const code = "INSUFFICIENT_FUNDS";
+        super(message, code, amount);
+        this.name = "InsufficientFundsError";
+        this.balance = balance;
+    }
 }
 
 export class NetworkError extends PaymentError {
-  constructor(amount) {
-    // Your code here
-  }
+    constructor(amount) {
+        // Your code here
+        const message = "Network error during transaction";
+        const code = "NETWORK_ERROR";
+        super(message, code, amount);
+        this.name = "NetworkError";
+        this.retryable = true;
+    }
 }
 
 export class FraudDetectedError extends PaymentError {
-  constructor(amount) {
-    // Your code here
-  }
+    constructor(amount) {
+        // Your code here
+        const message = "Suspicious transaction detected";
+        const code = "FRAUD_DETECTED";
+        super(message, code, amount);
+        this.name = "FraudDetectedError";
+        this.retryable = false;
+    }
 }
 
 export async function processPayment(amount, balance, networkStatus) {
-  // Your code here
+    // Your code here
+    if (amount < 0)
+        throw new PaymentError("Invalid amount", "INVALID_AMOUNT", amount);
+
+    if (amount > balance) throw new InsufficientFundsError(amount, balance);
+
+    if (networkStatus === "offline") throw new NetworkError(amount);
+
+    if (amount > 100000) throw new FraudDetectedError(amount);
+
+    setTimeout(() => Promise.resolve(), 50);
+    return {
+        transactionId: "TXN" + Math.floor(Math.random() * 1000000),
+        amount,
+        status: "success",
+        timestamp: new Date().toISOString(),
+    };
 }
 
 export async function retryPayment(paymentFn, maxRetries, delayMs) {
-  // Your code here
+    // Your code here
+    if (maxRetries < 0 || delayMs <= 0) {
+        throw new Error("Invalid arguments");
+    }
+
+    let lastError;
+
+    for (let i = 0; i <= maxRetries; i++) {
+        try {
+            return await paymentFn();
+        } catch (error) {
+            if (error instanceof NetworkError) {
+                lastError = error;
+                if (i < maxRetries) {
+                    // wait before retrying
+                    await new Promise((resolve) =>
+                        setTimeout(resolve, delayMs),
+                    );
+                    continue;
+                }
+            } else {
+                throw error;
+            }
+        }
+    }
+
+    throw lastError;
 }
 
 export async function processWithFallback(primaryFn, fallbackFn) {
-  // Your code here
+    // Your code here
+    try {
+        return await primaryFn();
+    } catch (primaryError) {
+        try {
+            return await fallbackFn();
+        } catch (fallbackError) {
+            throw new PaymentError(
+                `Primary: ${primaryError.message}, Fallback: ${fallbackError.message}`,
+                "BOTH_FAILED",
+                0,
+            );
+        }
+    }
 }
 
 export function categorizeError(error) {
-  // Your code here
+    // Your code here
+    let categorization
+    if(error instanceof InsufficientFundsError){
+      categorization =  { type: "insufficient_funds", retryable: false, message: error.message }
+    }
+
+    else if(error instanceof NetworkError){
+      categorization = { type: "network", retryable: true, message: error.message }
+    }
+    else if(error instanceof FraudDetectedError){
+      categorization = { type: "fraud", retryable: false, message: error.message }
+    }
+    else{
+      categorization = { type: "unknown", retryable: false, message: error.message || "Unknown error" }
+    }
+
+    return categorization
 }
